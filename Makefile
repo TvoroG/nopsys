@@ -12,7 +12,7 @@ stage1.bin: boot/stage1.asm
 	nasm -f bin -o bin/stage1.bin boot/stage1.asm
 
 start: all
-	qemu-system-i386 -fda bin/disk.img -boot a
+	qemu-system-i386 -fda bin/disk.img -boot a $(QM)
 
 clean:
 	rm bin/*.bin
