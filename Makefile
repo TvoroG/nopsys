@@ -1,7 +1,7 @@
 all: stage0.bin stage1.bin
 	dd if=/dev/zero of=bin/disk.img bs=1024 count=1440
 	dd if=bin/stage0.bin of=bin/disk.img conv=notrunc
-	dd if=bin/stage1.bin of=bin/disk.img bs=1 seek=512
+	dd if=bin/stage1.bin of=bin/disk.img bs=512 seek=1
 
 stage0.bin: boot/stage0.asm
 	@mkdir -p bin
