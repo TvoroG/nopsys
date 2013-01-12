@@ -5,7 +5,7 @@ NUM 	equ		0x11
 DISK 	equ		0x00
 POS 	equ		0x0002
 HEAD 	equ		0x00		
-
+STAGE1_ADR 	equ		0x1000
 		
 start:
 		jmp	stage0				; Normalize the start address
@@ -27,22 +27,25 @@ stage0:
 		mov	al, NUM				; 17 sectors to read
 		mov	cx, POS				; Track/Sector
 		mov	dh, HEAD			; Head
-		mov	bx, 0x1000			; es:bx = 0x1000, buffer
+		mov	bx, STAGE1_ADR			; es:bx = 0x1000, buffer
 		mov	ah, 0x02			
 		int	0x13
 		
-		jc	hang				; jamp if error
+		jc	hang				; jump if error
 
-		;; print string
+		;; print string if ok
 		mov	si, msg
 print:	lodsb
 		or	al, al
-		jz	hang
+		jz	next_stage
 		mov	ah, 0x0e
 		int	0x10
 		jmp	print
 
-		;; TODO jamp to stage1
+next_stage:
+		mov	bx, STAGE1_ADR
+		jmp	far bx
+		
 hang:
 		jmp	hang
 
