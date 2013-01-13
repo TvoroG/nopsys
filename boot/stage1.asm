@@ -1,21 +1,35 @@
 bits 16
 org 0x1000
 
-stage1:
-		mov	sp, 0x7000
+%macro	LGDT32	1
+		db	66h
+		db	8dh
+		db	1eh
+		dd	$1
+		db	0fh
+		db	01h
+		db	17h
+%endmacro
 
-		cli
-		lgdt [gdt_desc]
-		mov	eax, cr0
-		or	al, 1
-		mov	cr0, eax
-		jmp next
-
-next:
-		sti
-		jmp	$
+%macro	FJMP32	2
+		db	66h
+		db	0eah
+		dd	$2
+		dw	$1
+%endmacro		
 		
+stage1:
+		LGDT32	fword ptr gdt_desc
 
+		mov	eax, cr0
+		or	ax, 1
+		mov	cr0, eax
+		jmp	$+2
+
+		FJMP32	08h, Start32
+
+		
+		align	4
 gdt:	
 		;; GDT[0]: Null entry
 		dd	0
@@ -38,5 +52,16 @@ gdt:
 GDT_SIZE	equ		$ - gdt
 gdt_desc:	dw		GDT_SIZE - 1
 			dd		gdt
+
+Start32:
+		mov	ax, 10h
+		mov	ds, ax
+		mov	es, ax
+		mov	fs, ax
+		mov	gs, ax
+		mov	ss, ax
+
+		mov	esp, 0xf000
+		
 		
 		times	512*17-($-$$)	db	0
