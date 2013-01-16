@@ -1,67 +1,82 @@
 bits 16
 org 0x1000
 
-%macro	LGDT32	1
-		db	66h
-		db	8dh
-		db	1eh
-		dd	$1
-		db	0fh
-		db	01h
-		db	17h
+%macro	ClrScr	0		
+		mov	ax, 0003h
+		int	10h
+%endmacro
+		
+%macro	EnableA20Gate	0
+		in	al, 92h
+		or	al, 2
+		out	92h, al
 %endmacro
 
-%macro	FJMP32	2
-		db	66h
-		db	0eah
-		dd	$2
-		dw	$1
-%endmacro		
+%macro	DisableNMI	0
+		in	al, 70h
+		or	al, 80h
+		out	70h, al
+%endmacro
+
+%macro	SwitchToPM	0
+		mov	eax, cr0
+		or	al, 1
+		mov	cr0, eax
+%endmacro
+
 		
 stage1:
-		LGDT32	fword ptr gdt_desc
-
-		mov	eax, cr0
-		or	ax, 1
-		mov	cr0, eax
-		jmp	$+2
-
-		FJMP32	08h, Start32
-
+		ClrScr					; clear screen
 		
+		mov	si, loadmsg			; print info message 
+		call print
+		
+		EnableA20Gate
+
+		db	66h					; load gdt register
+		lgdt [GDTR]
+		
+		cli						; disable all interrupts
+		DisableNMI
+		SwitchToPM				; switching to protected mode
+
+		jmp	clear_label			; clear prefetch queue
+clear_label:
+		
+		jmp	0x08:Start32
+
+print:
+		lodsb
+		or	al, al
+		jz	.done
+		mov	ah, 0eh
+		mov	bx, 0007h
+		int	0x10
+		jmp	print
+.done:
+		ret
+
+
 		align	4
-gdt:	
-		;; GDT[0]: Null entry
-		dd	0
-		dd	0
-		;; GDT[1]: read-only code, base address of 0xf000
-		dw	0x9000				; Limit[15:0]
-		dw	0x000f				; Base[15:0]
-		db	0x00				; Base[23:16]
-		db	10011010b			; P(1), DPL(00), S(1), 1, C(0), R(1), A(0)
-		db	11000000b			; G(1), D(1), 0, 0, Limit[19:16]
-		db	0x00				; Base[31:24]
-		;; GDT[2]: Writeable data segment
-		dw	0xff47				; Limit[15:0]
-		dw	0x0080				; Base[15:00]
-		db	0x00				; Base[23:16]
-		db	10010010b			; P(1), DPL(00), S(1), 0, E(0), W(1), A(0)
-		db	01000000b			; G(1), B(1), 0, 0, Limit[19:16]
-		db	0x00				; Base[31:24]
-		
-GDT_SIZE	equ		$ - gdt
-gdt_desc:	dw		GDT_SIZE - 1
-			dd		gdt
+GDT:
+NULL_descr:
+		times	8	db	0
+CODE_descr:
+		db  0FFh,0FFh,00h,00h,00h,10011010b,11001111b,00h
+DATA_descr:
+		db  0FFh,0FFh,00h,00h,00h,10010010b,11001111b,00h
 
+GDT_size equ   $-GDT    ; size of GDT
+
+GDTR:	dw  GDT_size-1   ; limit of GDT
+		dd  GDT
+		
+loadmsg		dd	"Loading kernel...", 13, 10, 0
+
+		
+bits 32		
 Start32:
-		mov	ax, 10h
-		mov	ds, ax
-		mov	es, ax
-		mov	fs, ax
-		mov	gs, ax
-		mov	ss, ax
+		
+		jmp	$
 
-		mov	esp, 0xf000
-		
-		
 		times	512*17-($-$$)	db	0
